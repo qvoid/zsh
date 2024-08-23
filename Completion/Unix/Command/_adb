@@ -24,6 +24,10 @@ _adb() {
       _adb_device_serial
       ;;
 
+      (ANDROID_TRANSPORT_ID)
+      _adb_device_transport_id
+      ;;
+
       (ANDROID_LOG_TAGS)
       _adb_logcat_filter_specification
       ;;
@@ -81,10 +85,12 @@ _adb() {
 
   if ! adb ${ADB_DEVICE_SPECIFICATION} shell exit 2>/dev/null; then
       # early bail-out until a single valid device/emulator is specified and up-and-running
+      [[ $words[CURRENT-1] = -t ]] ||
       [[ $words[CURRENT-1] = -s ]] || _message -r "No (started) device specified, completions do not yet work"
       #TODO handle -t transport-id
       _arguments \
 	'-s[serial]: :_adb_device_serial' \
+    '-t[transport_id]: :_adb_device_transport_id' \
 	'(   -e)-d[device]' \
 	'(-d   )-e[emulator]' \
 	'1:option:_adb_options_handler' \
@@ -143,6 +149,7 @@ _adb_dispatch_command () {
 	'(-d -e)-s[serial]: :_adb_device_serial' \
 	'(-s -e)-d[device]' \
 	'(-d -s)-e[emulator]' \
+    '-t[transport_id]: :_adb_device_transport_id' \
 	'*:option:_adb_options_handler'
       ;;
   esac
@@ -494,6 +501,24 @@ _adb_device_serial() {
   local -a devices device_desc
   local device
   devices=( $(adb devices -l | sed -n -e 's/:/\\:/' -e 's/^\([^[:space:]]*\)[[:space:]]*.*product:\([^[:space:]]*\).*$/\1:\2/p') )
+  zstyle -a :completion:${curcontext} device-names device_desc
+  for device in $device_desc; do
+    if [[ -n $devices[(r)${device%:*}:*] ]]; then
+      devices[(i)${device%:*}:*]=$device
+    elif [[ -n $devices[(r)*:${device%:*}] ]]; then
+      devices[(i)*:${device%:*}]=${${devices[(r)*:${device%:*}]}%:*}:${device#*:}
+    fi
+  done
+  _describe -t dev_serial 'available device' devices
+}
+
+(( $+functions[_adb_device_transport_id] )) ||
+_adb_device_transport_id() {
+  local expl
+  local -a devices device_desc
+  local device
+  devices=( $(adb devices -l | sed -n -e 's/:/\\:/' -e 's/^\([^[:space:]]*\)[[:space:]]*.*transport_id:\([^[:space:]]*\).*$/\2:\1/p') )
+  #devices=( $(adb devices -l | sed -n -e 's/:/\\:/' -e 's/^\([^[:space:]]*\)[[:space:]]*.*product:\([^[:space:]]*\).*transport_id:\([^[:space:]]*\).*$/\1:\2:\3/p; s/^\([^[:space:]]*\)[[:space:]]* .*transport_id:\([^[:space:]]*\).*$/\1: :\2/p') )
   zstyle -a :completion:${curcontext} device-names device_desc
   for device in $device_desc; do
     if [[ -n $devices[(r)${device%:*}:*] ]]; then
