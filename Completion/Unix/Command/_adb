@@ -527,7 +527,8 @@ _adb_device_transport_id() {
       compatible=$(
         adb -t $transport_id shell cat /proc/device-tree/compatible 2>/dev/null | awk -F',' '{print $2}'
       )
-      devices[$devices[(i)$device]]="$transport_id:$serial:$product:${compatible:-N/A}"
+      kernel=$(adb -t $transport_id shell uname -r)
+      devices[$devices[(i)$device]]="$transport_id:$serial:$product:${compatible:-N/A}:${kernel:-N/A}"
 
   done
 
@@ -535,7 +536,7 @@ _adb_device_transport_id() {
   for device in $devices; do
     IFS=: read transport_id serial product compatible <<< $device
     transport_list+=(
-      "$transport_id:${serial:-N/A} ${product:+($product)} ${compatible:+[Board:$compatible]}"
+      "$transport_id:${serial:-N/A} ${product:+($product)} ${compatible:+[$compatible]}"
     )
   done
   _describe -t transport_ids 'available transport IDs' transport_list
