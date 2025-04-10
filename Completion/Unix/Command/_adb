@@ -24,10 +24,6 @@ _adb() {
       _adb_device_serial
       ;;
 
-      (ANDROID_TRANSPORT_ID)
-      _adb_device_transport_id
-      ;;
-
       (ANDROID_LOG_TAGS)
       _adb_logcat_filter_specification
       ;;
@@ -516,30 +512,23 @@ _adb_device_serial() {
 _adb_device_transport_id() {
   local expl
   local -a devices device_desc
+  local -a transport_list
   local device
   devices=( $(adb devices -l | sed -n -e 's/:/\\:/' -e '
       s/^\([^[:space:]]*\)[[:space:]]*.*product:\([^[:space:]]*\).*transport_id:\([^[:space:]]*\).*$/\3:\1:\2/p;
       s/^\([^[:space:]]*\)[[:space:]]* .*transport_id:\([^[:space:]]*\).*$/\2:\1:/p') )
-  zstyle -a :completion:${curcontext} device-names device_desc
+  zstyle -a :completion:${curcontext} transport-id transport_list
 
   for device in $devices; do
-      IFS=: read transport_id serial product <<< $device
-      compatible=$(
-        adb -t $transport_id shell cat /proc/device-tree/compatible 2>/dev/null | awk -F',' '{print $2}'
-      )
-      kernel=$(adb -t $transport_id shell uname -r)
-      devices[$devices[(i)$device]]="$transport_id:$serial:$product:${compatible:-N/A}:${kernel:-N/A}"
+    IFS=: read transport_id serial product <<< $device
+    compatible=$(adb -t $transport_id shell cat /proc/device-tree/compatible 2>/dev/null | awk -F',' '{print $2}')
+    kernel=$(adb -t $transport_id shell uname -r)
 
-  done
-
-  local -a transport_list
-  for device in $devices; do
-    IFS=: read transport_id serial product compatible <<< $device
     transport_list+=(
-      "$transport_id:${serial:-N/A} ${product:+($product)} ${compatible:+[$compatible]}"
+      "$transport_id:${serial:-N/A} ${product:+$product} ${compatible:+$compatible} ${kernel:+$kernel}"
     )
   done
-  _describe -t transport_ids 'available transport IDs' transport_list
+  _describe -t transport-id 'available transport IDs' transport_list
 }
 
 (( $+functions[_adb_logcat_filter_specification] )) ||
